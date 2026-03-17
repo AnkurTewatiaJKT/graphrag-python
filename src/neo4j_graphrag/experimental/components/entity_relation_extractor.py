@@ -325,7 +325,16 @@ class LLMEntityRelationExtractor(EntityRelationExtractor):
     ) -> Neo4jGraph:
         """Run extraction, validation and post processing for a single chunk"""
         async with sem:
-            chunk_graph = await self.extract_for_chunk(schema, examples, chunk)
+            try:
+                chunk_graph = await self.extract_for_chunk(schema, examples, chunk)
+            except LLMGenerationError:
+                if self.on_error == OnError.RAISE:
+                    raise
+                logger.exception(
+                    "Entity extraction failed for chunk_index=%s. Skipping chunk because on_error=IGNORE.",
+                    chunk.index,
+                )
+                return Neo4jGraph()
             # final_chunk_graph = self.validate_chunk(chunk_graph, schema)
             await self.post_process_chunk(
                 chunk_graph,

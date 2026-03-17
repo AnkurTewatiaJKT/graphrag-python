@@ -146,6 +146,22 @@ async def test_extractor_llm_ainvoke_failed() -> None:
 
 
 @pytest.mark.asyncio
+async def test_extractor_llm_ainvoke_failed_ignored() -> None:
+    llm = MagicMock(spec=LLMInterface)
+    llm.ainvoke.side_effect = LLMGenerationError()
+
+    extractor = LLMEntityRelationExtractor(
+        llm=llm,
+        on_error=OnError.IGNORE,
+        create_lexical_graph=False,
+    )
+    chunks = TextChunks(chunks=[TextChunk(text="some text", index=0)])
+    result = await extractor.run(chunks=chunks)
+    assert result.nodes == []
+    assert result.relationships == []
+
+
+@pytest.mark.asyncio
 async def test_extractor_llm_unfixable_json() -> None:
     llm = MagicMock(spec=LLMInterface)
     llm.ainvoke.return_value = LLMResponse(
