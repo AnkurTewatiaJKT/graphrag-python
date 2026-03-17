@@ -12,12 +12,18 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from pydantic import validate_call
 import asyncio
+import logging
+from typing import Optional
+
+from pydantic import validate_call
 
 from neo4j_graphrag.embeddings.base import Embedder
+from neo4j_graphrag.exceptions import EmbeddingsGenerationError
 from neo4j_graphrag.experimental.components.types import TextChunk, TextChunks
 from neo4j_graphrag.experimental.pipeline.component import Component
+
+logger = logging.getLogger(__name__)
 
 
 class TextChunkEmbedder(Component):
@@ -68,7 +74,7 @@ class TextChunkEmbedder(Component):
 
     async def _async_embed_chunk(
         self, sem: asyncio.Semaphore, text_chunk: TextChunk
-    ) -> TextChunk:
+    ) -> Optional[TextChunk]:
         """Asynchronously embed a single text chunk.
 
         Args:
@@ -80,15 +86,22 @@ class TextChunkEmbedder(Component):
             metadata containing the embeddings of the text chunk's text.
         """
         async with sem:
-            embedding = await self._embedder.async_embed_query(text_chunk.text)
-            metadata = text_chunk.metadata if text_chunk.metadata else {}
-            metadata["embedding"] = embedding
-            return TextChunk(
-                text=text_chunk.text,
-                index=text_chunk.index,
-                metadata=metadata,
-                uid=text_chunk.uid,
-            )
+            try:
+                embedding = await self._embedder.async_embed_query(text_chunk.text)
+                metadata = text_chunk.metadata if text_chunk.metadata else {}
+                metadata["embedding"] = embedding
+                return TextChunk(
+                    text=text_chunk.text,
+                    index=text_chunk.index,
+                    metadata=metadata,
+                    uid=text_chunk.uid,
+                )
+            except EmbeddingsGenerationError:
+                logger.exception(
+                    "Embedding generation failed for chunk_index=%s. Skipping chunk.",
+                    text_chunk.index,
+                )
+                return None
 
     @validate_call
     async def run(self, text_chunks: TextChunks) -> TextChunks:
@@ -105,5 +118,8 @@ class TextChunkEmbedder(Component):
             self._async_embed_chunk(sem, text_chunk)
             for text_chunk in text_chunks.chunks
         ]
-        chunks: list[TextChunk] = list(await asyncio.gather(*tasks))
+        embedded_or_none = await asyncio.gather(*tasks)
+        chunks: list[TextChunk] = [
+            chunk for chunk in embedded_or_none if chunk is not None
+        ]
         return TextChunks(chunks=chunks)

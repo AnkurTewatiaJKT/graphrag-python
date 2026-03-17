@@ -15,6 +15,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from neo4j_graphrag.exceptions import EmbeddingsGenerationError
 from neo4j_graphrag.experimental.components.embedder import TextChunkEmbedder
 from neo4j_graphrag.experimental.components.types import (
     TextChunk,
@@ -39,3 +40,25 @@ async def test_text_chunk_embedder_run(embedder: MagicMock) -> None:
         assert isinstance(chunk.metadata["embedding"], list)
         for i in chunk.metadata["embedding"]:
             assert isinstance(i, float)
+
+
+@pytest.mark.asyncio
+async def test_text_chunk_embedder_run_skips_failed_chunks(embedder: MagicMock) -> None:
+    embedder.async_embed_query.side_effect = [
+        [1.0, 2.0, 3.0],
+        EmbeddingsGenerationError("rate limit"),
+    ]
+    text_chunk_embedder = TextChunkEmbedder(embedder=embedder)
+    text_chunks = TextChunks(
+        chunks=[
+            TextChunk(text="may thy knife chip and shatter", index=0),
+            TextChunk(text="fear is the mind-killer", index=1),
+        ]
+    )
+
+    embedded_chunks = await text_chunk_embedder.run(text_chunks)
+
+    assert len(embedded_chunks.chunks) == 1
+    assert embedded_chunks.chunks[0].index == 0
+    assert embedded_chunks.chunks[0].metadata is not None
+    assert "embedding" in embedded_chunks.chunks[0].metadata
