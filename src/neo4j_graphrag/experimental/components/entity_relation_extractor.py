@@ -207,11 +207,15 @@ class LLMEntityRelationExtractor(EntityRelationExtractor):
         create_lexical_graph: bool = True,
         on_error: OnError = OnError.RAISE,
         max_concurrency: int = 5,
+        max_failed_chunk_ratio: float = 0.15,
         use_structured_output: bool = False,
     ) -> None:
         super().__init__(on_error=on_error, create_lexical_graph=create_lexical_graph)
+        if not 0 <= max_failed_chunk_ratio <= 1:
+            raise ValueError("max_failed_chunk_ratio must be between 0 and 1")
         self.llm = llm
         self.max_concurrency = max_concurrency
+        self.max_failed_chunk_ratio = max_failed_chunk_ratio
         self.use_structured_output = use_structured_output
 
         # Validate that structured output is only used with supported LLMs
@@ -322,7 +326,7 @@ class LLMEntityRelationExtractor(EntityRelationExtractor):
         schema: GraphSchema,
         examples: str,
         lexical_graph_builder: Optional[LexicalGraphBuilder] = None,
-    ) -> Neo4jGraph:
+    ) -> tuple[Neo4jGraph, bool]:
         """Run extraction, validation and post processing for a single chunk"""
         async with sem:
             try:
@@ -334,14 +338,14 @@ class LLMEntityRelationExtractor(EntityRelationExtractor):
                     "Entity extraction failed for chunk_index=%s. Skipping chunk because on_error=IGNORE.",
                     chunk.index,
                 )
-                return Neo4jGraph()
+                return Neo4jGraph(), True
             # final_chunk_graph = self.validate_chunk(chunk_graph, schema)
             await self.post_process_chunk(
                 chunk_graph,
                 chunk,
                 lexical_graph_builder,
             )
-            return chunk_graph
+            return chunk_graph, False
 
     @validate_call
     async def run(
@@ -393,7 +397,16 @@ class LLMEntityRelationExtractor(EntityRelationExtractor):
             )
             for chunk in chunks.chunks
         ]
-        chunk_graphs: list[Neo4jGraph] = list(await asyncio.gather(*tasks))
+        run_results = await asyncio.gather(*tasks)
+        chunk_graphs = [chunk_graph for chunk_graph, _ in run_results]
+        failed_chunks = sum(1 for _, failed in run_results if failed)
+        total_chunks = len(chunks.chunks)
+        failure_ratio = failed_chunks / total_chunks if total_chunks else 0.0
+        if failure_ratio > self.max_failed_chunk_ratio:
+            raise LLMGenerationError(
+                f"Entity extraction failed for {failed_chunks}/{total_chunks} chunks "
+                f"({failure_ratio:.2%}), exceeding max_failed_chunk_ratio={self.max_failed_chunk_ratio:.2%}"
+            )
         graph = self.combine_chunk_graphs(lexical_graph, chunk_graphs)
         logger.debug(f"Extracted graph: {prettify(graph)}")
         return graph

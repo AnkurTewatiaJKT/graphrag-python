@@ -87,6 +87,8 @@ class SimpleKGPipeline:
         kg_writer (Optional[KGWriter]): A knowledge graph writer component. Defaults to Neo4jWriter().
         on_error (str): Error handling strategy for the Entity and relation extractor. Defaults to "IGNORE", where chunk will be ignored if extraction fails. Possible values: "RAISE" or "IGNORE".
         perform_entity_resolution (bool): Merge entities with same label and name. Default: True
+        max_failed_chunk_ratio (float): Maximum ratio of failed extraction chunks tolerated before failing the pipeline. Defaults to 0.15.
+        max_failed_embedding_chunk_ratio (float): Maximum ratio of failed embedding chunks tolerated before failing the pipeline. Defaults to 0.01.
         prompt_template (str): A custom prompt template to use for extraction.
         lexical_graph_config (Optional[LexicalGraphConfig], optional): Lexical graph configuration to customize node labels and relationship types in the lexical graph.
     """
@@ -113,6 +115,8 @@ class SimpleKGPipeline:
         on_error: str = "IGNORE",
         prompt_template: Union[ERExtractionTemplate, str] = ERExtractionTemplate(),
         perform_entity_resolution: bool = True,
+        max_failed_chunk_ratio: float = 0.15,
+        max_failed_embedding_chunk_ratio: float = 0.01,
         lexical_graph_config: Optional[LexicalGraphConfig] = None,
         neo4j_database: Optional[str] = None,
     ):
@@ -135,6 +139,8 @@ class SimpleKGPipeline:
                     on_error=OnError(on_error),
                     prompt_template=prompt_template,
                     perform_entity_resolution=perform_entity_resolution,
+                    max_failed_chunk_ratio=max_failed_chunk_ratio,
+                    max_failed_embedding_chunk_ratio=max_failed_embedding_chunk_ratio,
                     lexical_graph_config=lexical_graph_config,
                     neo4j_database=neo4j_database,
                 )

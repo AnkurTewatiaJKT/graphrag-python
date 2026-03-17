@@ -48,9 +48,17 @@ class TextChunkEmbedder(Component):
 
     """
 
-    def __init__(self, embedder: Embedder, max_concurrency: int = 5):
+    def __init__(
+        self,
+        embedder: Embedder,
+        max_concurrency: int = 5,
+        max_failed_chunk_ratio: float = 0.01,
+    ):
+        if not 0 <= max_failed_chunk_ratio <= 1:
+            raise ValueError("max_failed_chunk_ratio must be between 0 and 1")
         self._embedder = embedder
         self.max_concurrency = max_concurrency
+        self.max_failed_chunk_ratio = max_failed_chunk_ratio
 
     def _embed_chunk(self, text_chunk: TextChunk) -> TextChunk:
         """Embed a single text chunk.
@@ -119,6 +127,14 @@ class TextChunkEmbedder(Component):
             for text_chunk in text_chunks.chunks
         ]
         embedded_or_none = await asyncio.gather(*tasks)
+        failed_chunks = sum(1 for chunk in embedded_or_none if chunk is None)
+        total_chunks = len(text_chunks.chunks)
+        failure_ratio = failed_chunks / total_chunks if total_chunks else 0.0
+        if failure_ratio > self.max_failed_chunk_ratio:
+            raise EmbeddingsGenerationError(
+                f"Embedding generation failed for {failed_chunks}/{total_chunks} chunks "
+                f"({failure_ratio:.2%}), exceeding max_failed_chunk_ratio={self.max_failed_chunk_ratio:.2%}"
+            )
         chunks: list[TextChunk] = [
             chunk for chunk in embedded_or_none if chunk is not None
         ]

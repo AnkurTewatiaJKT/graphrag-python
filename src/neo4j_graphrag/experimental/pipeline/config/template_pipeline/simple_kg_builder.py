@@ -92,6 +92,8 @@ class SimpleKGPipelineConfig(TemplatePipelineConfig):
     on_error: OnError = OnError.IGNORE
     prompt_template: Union[ERExtractionTemplate, str] = ERExtractionTemplate()
     perform_entity_resolution: bool = True
+    max_failed_chunk_ratio: float = 0.15
+    max_failed_embedding_chunk_ratio: float = 0.01
     lexical_graph_config: Optional[LexicalGraphConfig] = None
     neo4j_database: Optional[str] = None
 
@@ -178,7 +180,10 @@ class SimpleKGPipelineConfig(TemplatePipelineConfig):
         return {}
 
     def _get_chunk_embedder(self) -> TextChunkEmbedder:
-        return TextChunkEmbedder(embedder=self.get_default_embedder())
+        return TextChunkEmbedder(
+            embedder=self.get_default_embedder(),
+            max_failed_chunk_ratio=self.max_failed_embedding_chunk_ratio,
+        )
 
     def _get_schema(self) -> BaseSchemaBuilder:
         """
@@ -227,6 +232,7 @@ class SimpleKGPipelineConfig(TemplatePipelineConfig):
             llm=llm,
             prompt_template=self.prompt_template,
             on_error=self.on_error,
+            max_failed_chunk_ratio=self.max_failed_chunk_ratio,
             use_structured_output=llm.supports_structured_output,
         )
 

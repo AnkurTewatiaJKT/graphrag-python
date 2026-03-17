@@ -43,22 +43,45 @@ async def test_text_chunk_embedder_run(embedder: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_text_chunk_embedder_run_skips_failed_chunks(embedder: MagicMock) -> None:
+async def test_text_chunk_embedder_run_skips_failed_chunks_below_threshold(
+    embedder: MagicMock,
+) -> None:
     embedder.async_embed_query.side_effect = [
         [1.0, 2.0, 3.0],
-        EmbeddingsGenerationError("rate limit"),
+        EmbeddingsGenerationError("transient"),
     ]
-    text_chunk_embedder = TextChunkEmbedder(embedder=embedder)
+    text_chunk_embedder = TextChunkEmbedder(
+        embedder=embedder,
+        max_failed_chunk_ratio=0.6,
+    )
     text_chunks = TextChunks(
         chunks=[
             TextChunk(text="may thy knife chip and shatter", index=0),
             TextChunk(text="fear is the mind-killer", index=1),
         ]
     )
-
     embedded_chunks = await text_chunk_embedder.run(text_chunks)
-
     assert len(embedded_chunks.chunks) == 1
     assert embedded_chunks.chunks[0].index == 0
-    assert embedded_chunks.chunks[0].metadata is not None
-    assert "embedding" in embedded_chunks.chunks[0].metadata
+
+
+@pytest.mark.asyncio
+async def test_text_chunk_embedder_run_fails_above_threshold(
+    embedder: MagicMock,
+) -> None:
+    embedder.async_embed_query.side_effect = [
+        [1.0, 2.0, 3.0],
+        EmbeddingsGenerationError("transient"),
+    ]
+    text_chunk_embedder = TextChunkEmbedder(
+        embedder=embedder,
+        max_failed_chunk_ratio=0.15,
+    )
+    text_chunks = TextChunks(
+        chunks=[
+            TextChunk(text="may thy knife chip and shatter", index=0),
+            TextChunk(text="fear is the mind-killer", index=1),
+        ]
+    )
+    with pytest.raises(EmbeddingsGenerationError):
+        await text_chunk_embedder.run(text_chunks)

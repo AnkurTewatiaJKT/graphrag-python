@@ -154,11 +154,38 @@ async def test_extractor_llm_ainvoke_failed_ignored() -> None:
         llm=llm,
         on_error=OnError.IGNORE,
         create_lexical_graph=False,
+        max_failed_chunk_ratio=1.0,
     )
     chunks = TextChunks(chunks=[TextChunk(text="some text", index=0)])
     result = await extractor.run(chunks=chunks)
     assert result.nodes == []
     assert result.relationships == []
+
+
+@pytest.mark.asyncio
+async def test_extractor_llm_ainvoke_failed_ignored_exceeds_threshold() -> None:
+    llm = MagicMock(spec=LLMInterface)
+
+    async def _ainvoke(prompt: str) -> LLMResponse:
+        if "will fail" in prompt:
+            raise LLMGenerationError("boom")
+        return LLMResponse(content='{"nodes": [], "relationships": []}')
+
+    llm.ainvoke.side_effect = _ainvoke
+    extractor = LLMEntityRelationExtractor(
+        llm=llm,
+        on_error=OnError.IGNORE,
+        create_lexical_graph=False,
+        max_failed_chunk_ratio=0.15,
+    )
+    chunks = TextChunks(
+        chunks=[
+            TextChunk(text="this chunk will fail", index=0),
+            TextChunk(text="this chunk is fine", index=1),
+        ]
+    )
+    with pytest.raises(LLMGenerationError):
+        await extractor.run(chunks=chunks)
 
 
 @pytest.mark.asyncio
