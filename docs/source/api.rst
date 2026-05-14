@@ -18,13 +18,19 @@ Component
 DataLoader
 ==========
 
-.. autoclass:: neo4j_graphrag.experimental.components.pdf_loader.DataLoader
+.. autoclass:: neo4j_graphrag.experimental.components.data_loader.DataLoader
     :members: run, get_document_metadata
 
 PdfLoader
 =========
 
-.. autoclass:: neo4j_graphrag.experimental.components.pdf_loader.PdfLoader
+.. autoclass:: neo4j_graphrag.experimental.components.data_loader.PdfLoader
+    :members: run, load_file
+
+MarkdownLoader
+==============
+
+.. autoclass:: neo4j_graphrag.experimental.components.data_loader.MarkdownLoader
     :members: run, load_file
 
 TextSplitter
@@ -181,15 +187,12 @@ RetrieverInterface
     :members:
 
 
-.. _vectorretriever:
-
 VectorRetriever
 ===============
 
 .. autoclass:: neo4j_graphrag.retrievers.VectorRetriever
     :members: search
 
-.. _vectorcypherretriever:
 
 VectorCypherRetriever
 =====================
@@ -198,8 +201,6 @@ VectorCypherRetriever
     :members: search
 
 
-.. _hybridretriever:
-
 HybridRetriever
 ===============
 
@@ -207,15 +208,12 @@ HybridRetriever
     :members: search
 
 
-.. _hybridcypherretriever:
-
 HybridCypherRetriever
 =====================
 
 .. autoclass:: neo4j_graphrag.retrievers.HybridCypherRetriever
     :members: search
 
-.. _text2cypherretriever:
 
 Text2CypherRetriever
 =====================
@@ -223,7 +221,6 @@ Text2CypherRetriever
 .. autoclass:: neo4j_graphrag.retrievers.Text2CypherRetriever
     :members: search
 
-.. _toolsretriever:
 
 ToolsRetriever
 ==============
@@ -239,8 +236,6 @@ External Retrievers
 This section includes retrievers that integrate with databases external to Neo4j.
 
 
-.. _weaviateneo4jretriever:
-
 WeaviateNeo4jRetriever
 ======================
 
@@ -248,15 +243,12 @@ WeaviateNeo4jRetriever
     :members: search
 
 
-.. _pineconeneo4jretriever:
-
 PineconeNeo4jRetriever
 ======================
 
 .. autoclass:: neo4j_graphrag.retrievers.external.pinecone.pinecone.PineconeNeo4jRetriever
     :members: search
 
-.. _qdrantneo4jretriever:
 
 QdrantNeo4jRetriever
 ====================
@@ -308,6 +300,12 @@ MistralAIEmbeddings
 .. autoclass:: neo4j_graphrag.embeddings.mistral.MistralAIEmbeddings
     :members:
 
+BedrockEmbeddings
+=================
+
+.. autoclass:: neo4j_graphrag.embeddings.bedrock.BedrockEmbeddings
+    :members:
+
 CohereEmbeddings
 ================
 
@@ -325,6 +323,13 @@ LLMInterface
 ------------
 
 .. autoclass:: neo4j_graphrag.llm.LLMInterface
+    :members:
+
+
+LLMBase
+-------
+
+.. autoclass:: neo4j_graphrag.llm.LLMBase
     :members:
 
 
@@ -360,6 +365,13 @@ AnthropicLLM
 ------------
 
 .. autoclass:: neo4j_graphrag.llm.anthropic_llm.AnthropicLLM
+    :members:
+
+
+BedrockLLM
+----------
+
+.. autoclass:: neo4j_graphrag.llm.bedrock_llm.BedrockLLM
     :members:
 
 
